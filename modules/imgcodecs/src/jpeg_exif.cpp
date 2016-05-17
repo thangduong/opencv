@@ -149,7 +149,7 @@ std::map<int, ExifEntry_t > ExifReader::getExif()
             break;
         }
         unsigned char marker = appMarker[1];
-        size_t bytesToSkip;
+        long bytesToSkip;
         size_t exifSize;
         switch( marker )
         {
@@ -159,8 +159,15 @@ std::map<int, ExifEntry_t > ExifReader::getExif()
             case APP0: case APP2: case APP3: case APP4: case APP5: case APP6: case APP7: case APP8:
             case APP9: case APP10: case APP11: case APP12: case APP13: case APP14: case APP15:
             case COM:
-                bytesToSkip = getFieldSize( f );
-                fseek( f, static_cast<long>( bytesToSkip - markerSize ), SEEK_CUR );
+                // the field size includes 2 bytes for the field size.  Since we've already read those
+                // 2 bytes, we can seek forward bytesToSkip-2
+                bytesToSkip = static_cast<long>(getFieldSize( f )) - 2;
+                if (bytesToSkip < 0)
+                {
+                    fclose(f);
+                    throw ExifParsingError();
+                }
+                fseek( f, static_cast<long>( bytesToSkip ), SEEK_CUR );
                 break;
 
             //SOI and EOI don't have the size field after the marker
